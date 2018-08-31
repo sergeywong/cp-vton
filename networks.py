@@ -98,10 +98,10 @@ class FeatureRegression(nn.Module):
     def __init__(self, input_nc=512,output_dim=6, use_cuda=True):
         super(FeatureRegression, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(input_nc, 512, kernel_size=5, stride=2, padding=2),
+            nn.Conv2d(input_nc, 512, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
-            nn.Conv2d(512, 256, kernel_size=5, stride=2, padding=2),
+            nn.Conv2d(512, 256, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             nn.Conv2d(256, 128, kernel_size=3, padding=1),

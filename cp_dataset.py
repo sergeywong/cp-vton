@@ -78,7 +78,12 @@ class CPDataset(data.Dataset):
         parse_cloth = (parse_array == 5).astype(np.float32) + \
                 (parse_array == 6).astype(np.float32) + \
                 (parse_array == 7).astype(np.float32)
-        shape = torch.from_numpy(2*parse_shape-1) # [-1,1]
+       
+        # shape downsample
+        parse_shape = Image.fromarray((parse_shape*255).astype(np.uint8))
+        parse_shape = parse_shape.resize((self.fine_width//16, self.fine_height//16), Image.BILINEAR)
+        parse_shape = parse_shape.resize((self.fine_width, self.fine_height), Image.BILINEAR)
+        shape = self.transform(parse_shape) # [-1,1]
         phead = torch.from_numpy(parse_head) # [0,1]
         pcm = torch.from_numpy(parse_cloth) # [0,1]
 
@@ -97,8 +102,8 @@ class CPDataset(data.Dataset):
         point_num = pose_data.shape[0]
         pose_map = torch.zeros(point_num, self.fine_height, self.fine_width)
         r = self.radius
-        single_map = Image.new('L', (self.fine_width, self.fine_height))
-        single_draw = ImageDraw.Draw(single_map)
+        im_pose = Image.new('L', (self.fine_width, self.fine_height))
+        pose_draw = ImageDraw.Draw(im_pose)
         for i in range(point_num):
             one_map = Image.new('L', (self.fine_width, self.fine_height))
             draw = ImageDraw.Draw(one_map)
@@ -106,15 +111,21 @@ class CPDataset(data.Dataset):
             pointy = pose_data[i,1]
             if pointx > 1 and pointy > 1:
                 draw.ellipse((pointx-r, pointy-r, pointx+r, pointy+r), 'white', 'white')
-                single_draw.ellipse((pointx-r, pointy-r, pointx+r, pointy+r), 'white', 'white')
+                pose_draw.ellipse((pointx-r, pointy-r, pointx+r, pointy+r), 'white', 'white')
             one_map = self.transform(one_map)
             pose_map[i] = one_map[0]
 
         # just for visualization
-        single_map = self.transform(single_map)
+        im_pose = self.transform(im_pose)
         
         # cloth-agnostic representation
-        agnostic = torch.cat([shape.unsqueeze_(0), im_h, pose_map], 0) 
+        agnostic = torch.cat([shape, im_h, pose_map], 0) 
+
+        if self.stage == 'GMM':
+            im_g = Image.open('grid.png')
+            im_g = self.transform(im_g)
+        else:
+            im_g = None
 
         result = {
             'c_name':   c_name,     # for visualization
@@ -124,7 +135,10 @@ class CPDataset(data.Dataset):
             'image':    im,         # for visualization
             'agnostic': agnostic,   # for input
             'parse_cloth': im_c,    # for ground truth
-            'pose_img': single_map, # for visualization
+            'shape': shape,         # for visualization
+            'head': im_h,           # for visualization
+            'pose_image': im_pose,  # for visualization
+            'grid_image': im_g,     # for visualization
             }
 
         return result
