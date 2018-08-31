@@ -26,7 +26,7 @@ def get_opt():
     parser.add_argument("--data_list", default = "train_pairs.txt")
     parser.add_argument("--fine_width", type=int, default = 192)
     parser.add_argument("--fine_height", type=int, default = 256)
-    parser.add_argument("--radius", type=int, default = 3)
+    parser.add_argument("--radius", type=int, default = 5)
     parser.add_argument("--grid_size", type=int, default = 5)
     parser.add_argument('--lr', type=float, default=0.0001, help='initial learning rate for adam')
     parser.add_argument('--tensorboard_dir', type=str, default='tensorboard', help='save tensorboard infos')
@@ -67,27 +67,29 @@ def train_gmm(opt, train_loader, model, board):
         iter_start_time = time.time()
         inputs = train_loader.next_batch()
             
-        im = inputs['image']
-        im_pose = inputs['pose_image']
-        im_h = inputs['head']
-        shape = inputs['shape']
-
+        im = inputs['image'].cuda()
+        im_pose = inputs['pose_image'].cuda()
+        im_h = inputs['head'].cuda()
+        shape = inputs['shape'].cuda()
         agnostic = inputs['agnostic'].cuda()
         c = inputs['cloth'].cuda()
         cm = inputs['cloth_mask'].cuda()
         im_c =  inputs['parse_cloth'].cuda()
+        pcm =  inputs['parse_mask'].cuda()
         im_g = inputs['grid_image'].cuda()
             
         grid, theta = model(agnostic, c)
         warped_cloth = F.grid_sample(c, grid, padding_mode='border')
+        # concentrate on cloth part, which is more reasonable
+        warped_cloth_selected = warped_cloth * pcm + (1 - pcm)
         warped_mask = F.grid_sample(cm, grid, padding_mode='zeros')
         warped_grid = F.grid_sample(im_g, grid, padding_mode='zeros')
 
-        loss = criterionL1(warped_cloth, im_c)
         visuals = [ [im_h, shape, im_pose], 
                    [c, warped_cloth, im_c], 
                    [warped_grid, (warped_cloth+im)*0.5, im]]
-            
+        
+        loss = criterionL1(warped_cloth_selected, im_c)    
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -96,7 +98,7 @@ def train_gmm(opt, train_loader, model, board):
             board_add_images(board, 'combine', visuals, step+1)
             board.add_scalar('metric', loss.item(), step+1)
             t = time.time() - iter_start_time
-            print('step: %8d, time: %.3f, loss: %4f' % (step+1, t, loss.item()))
+            print('step: %8d, time: %.3f, loss: %4f' % (step+1, t, loss.item()), flush=True)
 
         if (step+1) % opt.save_count == 0:
             save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'step_%06d.pth' % (step+1)))
@@ -134,15 +136,14 @@ def train_tom(opt, train_loader, model, board):
         m_selected = m_composite * cm
         p_tryon = c * m_selected+ p_rendered * (1 - m_selected)
 
-        loss_l1 = criterionL1(p_tryon, im)
-        loss_vgg = criterionVGG(p_tryon, im)
-        loss_mask = criterionMask(1 - m_composite)
-        loss = loss_l1 + loss_vgg + loss_mask
-
         visuals = [ [im_h, shape, im_pose], 
                    [c, cm, m_composite], 
                    [p_rendered, p_tryon, im]]
             
+        loss_l1 = criterionL1(p_tryon, im)
+        loss_vgg = criterionVGG(p_tryon, im)
+        loss_mask = criterionMask(1 - m_composite)
+        loss = loss_l1 + loss_vgg + loss_mask
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -161,6 +162,7 @@ def train_tom(opt, train_loader, model, board):
 def main():
     opt = get_opt()
     print(opt)
+    print("Start to train stage: %s, named: %s!" % (opt.stage, opt.name))
    
     # create dataset 
     train_dataset = CPDataset(opt)
@@ -186,5 +188,4 @@ def main():
     print('Finished training %s, nameed: %s!' % (opt.stage, opt.name))
 
 if __name__ == "__main__":
-    print("Start to train stage: %s, named: %s!" % (opt.stage, opt.name))
     main()
