@@ -28,44 +28,29 @@ def get_opt():
     parser.add_argument("--fine_height", type=int, default = 256)
     parser.add_argument("--radius", type=int, default = 3)
     parser.add_argument("--grid_size", type=int, default = 5)
-    parser.add_argument('--lr', type=float, default=0.0001, help='initial learning rate for adam')
     parser.add_argument('--tensorboard_dir', type=str, default='tensorboard', help='save tensorboard infos')
-    parser.add_argument('--checkpoint_dir', type=str, default='checkpoints', help='save checkpoint infos')
-    parser.add_argument("--display_count", type=int, default = 20)
-    parser.add_argument("--save_count", type=int, default = 100)
-    parser.add_argument("--keep_step", type=int, default = 100000)
-    parser.add_argument("--decay_step", type=int, default = 100000)
-    parser.add_argument("--shuffle", action='store_true', help='shuffle input data')
+    parser.add_argument('--checkpoint', type=str, default='', help='model checkpoint for test')
+    parser.add_argument("--display_count", type=int, default = 1)
 
     opt = parser.parse_args()
     return opt
 
 
 
-def save_checkpoint(model, save_path):
-    if not os.path.exists(os.path.dirname(save_path)):
-        os.makedirs(os.path.dirname(save_path))
-
-    torch.save(model.cpu().state_dict(), save_path)
+def load_checkpoint(model, checkpoint_path):
+    if not os.path.exists(checkpoint_path):
+        return
+    model.load_state_dict(torch.load(checkpoint_path))
     model.cuda()
 
 
 
-def train_gmm(opt, train_loader, model, board):
+def test_gmm(opt, test_loader, model, board):
     model.cuda()
-    model.train()
-
-    # criterion
-    criterionL1 = nn.L1Loss()
+    mode.eval()
     
-    # optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr, betas=(0.5, 0.999))
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda = lambda step: 1.0 -
-            max(0, step - opt.keep_step) / float(opt.decay_step + 1))
-    
-    for step in range(opt.keep_step + opt.decay_step):
+    for step, inputs in enumerate(test_loader.data_loader):
         iter_start_time = time.time()
-        inputs = train_loader.next_batch()
             
         im = inputs['image']
         im_pose = inputs['pose_image']
@@ -88,37 +73,18 @@ def train_gmm(opt, train_loader, model, board):
                    [c, warped_cloth, im_c], 
                    [warped_grid, (warped_cloth+im)*0.5, im]]
             
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
             
         if (step+1) % opt.display_count == 0:
             board_add_images(board, 'combine', visuals, step+1)
-            board.add_scalar('metric', loss.item(), step+1)
             t = time.time() - iter_start_time
-            print('step: %8d, time: %.3f, loss: %4f' % (step+1, t, loss.item()))
-
-        if (step+1) % opt.save_count == 0:
-            save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'step_%06d.pth' % (step+1)))
 
 
-def train_tom(opt, train_loader, model, board):
+def test_tom(opt, test_loader, model, board):
     model.cuda()
-    mode.train()
+    mode.eval()
     
-    # criterion
-    criterionL1 = nn.L1Loss()
-    criterionVGG = networks.VGGLoss()
-    criterionMask = lambda x: x.abs().mean() 
-    
-    # optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr, betas=(0.5, 0.999))
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda = lambda step: 1.0 -
-            max(0, step - opt.keep_step) / float(opt.decay_step + 1))
-    
-    for step in range(opt.keep_step + opt.decay_step):
+    for step, inputs in enumerate(test_loader.data_loader):
         iter_start_time = time.time()
-        inputs = train_loader.next_batch()
             
         im = inputs['image'].cuda()
         im_pose = inputs['pose_image']
@@ -134,28 +100,13 @@ def train_tom(opt, train_loader, model, board):
         m_selected = m_composite * cm
         p_tryon = c * m_selected+ p_rendered * (1 - m_selected)
 
-        loss_l1 = criterionL1(p_tryon, im)
-        loss_vgg = criterionVGG(p_tryon, im)
-        loss_mask = criterionMask(1 - m_composite)
-        loss = loss_l1 + loss_vgg + loss_mask
-
         visuals = [ [im_h, shape, im_pose], 
                    [c, cm, m_composite], 
                    [p_rendered, p_tryon, im]]
             
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-            
         if (step+1) % opt.display_count == 0:
             board_add_images(board, 'combine', visuals, step+1)
-            board.add_scalar('metric', loss.item(), step+1)
             t = time.time() - iter_start_time
-            print('step: %8d, time: %.3f, loss: %4f' % (step+1, t, loss.item()))
-
-        if (step+1) % opt.save_count == 0:
-            save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'step_%06d.pth' % (step+1)))
-
 
 
 def main():
@@ -176,15 +127,17 @@ def main():
     # create model & train
     if opt.stage:
         model = GMM(opt)
-        train_gmm(opt, train_loader, model, board)
+        load_checkpoint(model, opt.checkpoint):
+        model.cuda()
+        mode.eval()
+        test_gmm(opt, train_loader, model, board)
     else:
         model = UnetGenerator(25, 4, 6, ngf=64, norm_layer=nn.InstanceNorm2d)
-        train_tom(opt, train_loader, model, board)
+        load_checkpoint(model, opt.checkpoint):
+        test_tom(opt, train_loader, model, board)
   
-    # save the final model checkpoint
-    save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'gmm_final.pth'))
-    print('Finished training %s, nameed: %s!' % (opt.stage, opt.name))
+    print('Finished test %s, nameed: %s!' % (opt.stage, opt.name))
 
 if __name__ == "__main__":
-    print("Start to train stage: %s, named: %s!" % (opt.stage, opt.name))
+    print("Start to test stage: %s, named: %s!" % (opt.stage, opt.name))
     main()
