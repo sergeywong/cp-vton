@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import argparse
 import os
 import time
-from cp_dataset import CPDataset
+from cp_dataset import CPDataset, CPDataLoader
 from networks import GMM, UnetGenerator
 
 from tensorboardX import SummaryWriter
@@ -16,12 +16,9 @@ from visualization import board_add_image, board_add_images
 def get_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", default = "GMM")
-    parser.add_argument("--checkpoint", default = "")
     parser.add_argument("--gpu_ids", default = "")
-    parser.add_argument('-j', '--workers', default=1, type=int, metavar='N',
-                    help='number of data loading workers (default: 4)')
-    parser.add_argument('-b', '--batch-size', default=4, type=int,
-                    metavar='N', help='mini-batch size (default: 256)')
+    parser.add_argument('-j', '--workers', type=int, default=1)
+    parser.add_argument('-b', '--batch-size', type=int, default=4)
     
     parser.add_argument("--dataroot", default = "data")
     parser.add_argument("--mode", default = "train")
@@ -33,59 +30,74 @@ def get_opt():
     parser.add_argument("--grid_size", type=int, default = 5)
     parser.add_argument('--lr', type=float, default=0.0001, help='initial learning rate for adam')
     parser.add_argument('--tensorboard_dir', type=str, default='tensorboard', help='save tensorboard infos')
-    parser.add_argument("--display_count", type=int, default = 10)
-    parser.add_argument("--keep_epoch", type=int, default = 20)
-    parser.add_argument("--decay_epoch", type=int, default = 20)
+    parser.add_argument('--checkpoint_dir', type=str, default='checkpoints', help='save checkpoint infos')
+    parser.add_argument("--display_count", type=int, default = 20)
+    parser.add_argument("--save_count", type=int, default = 100)
+    parser.add_argument("--keep_step", type=int, default = 100000)
+    parser.add_argument("--decay_step", type=int, default = 100000)
+    parser.add_argument("--shuffle", action='store_true', help='shuffle input data')
 
-    
     opt = parser.parse_args()
     return opt
 
+
+
+def save_checkpoint(model, save_path):
+    if not os.path.exists(os.path.dirname(save_path)):
+        os.makedirs(os.path.dirname(save_path))
+
+    torch.save(model.cpu().state_dict(), save_path)
+    model.cuda()
+
+
+
 def train_gmm(opt, train_loader, model, board):
+    # criterion
     criterionL1 = nn.L1Loss()
     
-    for epoch in range(opt.keep_epoch + opt.decay_epoch):
-        # optimizer, not well implemented for lr schedular
-        if epoch < opt.keep_epoch:
-            optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr, betas=(0.5, 0.999))
-        else:
-            new_lr = opt.lr * (1 - (epoch - opt.keep_epoch) / opt.decay_epoch)
-            optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr, betas=(0.5, 0.999))
+    # optimizer
+    optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr, betas=(0.5, 0.999))
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda = lambda step: 1.0 -
+            max(0, step - opt.keep_step) / float(opt.decay_step + 1))
+    
+    for step in range(opt.keep_step + opt.decay_step):
+        iter_start_time = time.time()
+        inputs = train_loader.next_batch()
+            
+        im = inputs['image']
+        im_pose = inputs['pose_image']
+        im_h = inputs['head']
+        shape = inputs['shape']
 
-        for i, inputs in enumerate(train_loader):
-            iter_start_time = time.time()
+        agnostic = inputs['agnostic'].cuda()
+        c = inputs['cloth'].cuda()
+        cm = inputs['cloth_mask'].cuda()
+        im_c =  inputs['parse_cloth'].cuda()
+        im_g = inputs['grid_image'].cuda()
             
-            im = inputs['image']
-            im_pose = inputs['pose_image']
-            im_h = inputs['head']
-            shape = inputs['shape']
+        grid, theta = model(agnostic, c)
+        warped_cloth = F.grid_sample(c, grid, padding_mode='border')
+        warped_mask = F.grid_sample(cm, grid, padding_mode='zeros')
+        warped_grid = F.grid_sample(im_g, grid, padding_mode='zeros')
 
-            agnostic = inputs['agnostic'].cuda()
-            c = inputs['cloth'].cuda()
-            cm = inputs['cloth_mask'].cuda()
-            im_c =  inputs['parse_cloth'].cuda()
-            im_g = inputs['grid_image'].cuda()
+        loss = criterionL1(warped_cloth, im_c)
+        visuals = [ [im_h, shape, im_pose], 
+                   [c, warped_cloth, im_c], 
+                   [warped_grid, warped_mask,im ] ]
             
-            grid, theta = model(agnostic, c)
-            warped_cloth = F.grid_sample(c, grid, padding_mode='border')
-            warped_mask = F.grid_sample(cm, grid, padding_mode='zeros')
-            warped_grid = F.grid_sample(im_g, grid, padding_mode='zeros')
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+            
+        if (step+1) % opt.display_count == 0:
+            board_add_images(board, 'combine', visuals, step+1)
+            board.add_scalar('metric', loss.item(), step+1)
+            t = time.time() - iter_start_time
+            print('step: %8d, time: %.3f, loss: %4f' % (step+1, t, loss.item()))
 
-            loss = criterionL1(warped_cloth, im_c)
-            visuals = [ [im_h, shape, im_pose], 
-                    [c, warped_cloth, im_c], 
-                    [warped_grid, warped_mask,im ] ]
-            
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            
-            global_count = epoch * len(train_loader) + i
-            if global_count % opt.display_count == 0:
-                board_add_images(board, 'combine', visuals, global_count)
-                board.add_scalar('metric', loss.item(), global_count)
-                t = time.time() - iter_start_time
-                print('epoch: %6d, step: %8d, time: %.3f, loss: %4f' % (epoch, i, t, loss.item()))
+        if (step+1) % opt.save_count == 0:
+            save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'step_%06d.pth' % (step+1)))
+
 
 
 def main():
@@ -96,14 +108,7 @@ def main():
     train_dataset = CPDataset(opt)
 
     # create dataloader
-    if False:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-    else:
-        train_sampler = None
-
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=opt.batch_size, shuffle=(train_sampler is None),
-        num_workers=opt.workers, pin_memory=True, sampler=train_sampler)
+    train_loader = CPDataLoader(opt, train_dataset)
 
     # create model
     if opt.stage:
@@ -112,15 +117,7 @@ def main():
         model = UnetGenerator(25, 4, 6, ngf=64, norm_layer=nn.InstanceNorm2d)
    
     model.cuda()
-    
-    # criterions
-    criterionL1 = nn.L1Loss()
-    criterionTV = lambda x: (
-            torch.abs(x[:, :, :, :-1] - x[:, :, :, 1:]).sum() + \
-            torch.abs(x[:, :, :-1, :] - x[:, :, 1:, :]).sum() )
-
-    # optimizer
-    adam = torch.optim.Adam(model.parameters(), lr=opt.lr, betas=(0.5, 0.999))
+    model.train()
     
     # visualization
     if not os.path.exists(opt.tensorboard_dir):
@@ -129,6 +126,8 @@ def main():
    
     # train
     train_gmm(opt, train_loader, model, board)
+    save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'gmm_final.pth'))
+    print('Finished traing %s' % (opt.stage))
 
 if __name__ == "__main__":
     print("Start to train geometric matching module!")

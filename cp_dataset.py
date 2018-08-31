@@ -146,6 +146,28 @@ class CPDataset(data.Dataset):
     def __len__(self):
         return len(self.im_names)
 
+class CPDataLoader(object):
+    def __init__(self, opt, dataset):
+        super(CPDataLoader, self).__init__()
+
+        if opt.shuffle :
+            train_sampler = torch.utils.data.sampler.RandomSampler(dataset)
+        else:
+            train_sampler = None
+
+        self.data_loader = torch.utils.data.DataLoader(
+                dataset, batch_size=opt.batch_size, shuffle=(train_sampler is None),
+                num_workers=opt.workers, pin_memory=True, sampler=train_sampler)
+        self.data_iter = self.data_loader.__iter__()
+       
+    def next_batch(self):
+        try:
+            batch = self.data_iter.__next__()
+        except StopIteration:
+            self.data_iter = self.data_loader.__iter__()
+            batch = self.data_iter.__next__()
+
+        return batch
 
 
 if __name__ == "__main__":
@@ -160,12 +182,18 @@ if __name__ == "__main__":
     parser.add_argument("--fine_width", type=int, default = 192)
     parser.add_argument("--fine_height", type=int, default = 256)
     parser.add_argument("--radius", type=int, default = 3)
+    parser.add_argument("--shuffle", action='store_true', help='shuffle input data')
+    parser.add_argument('-b', '--batch-size', type=int, default=4)
+    parser.add_argument('-j', '--workers', type=int, default=1)
     
     opt = parser.parse_args()
-    gmm = CPDataset(opt)
+    dataset = CPDataset(opt)
+    data_loader = CPDataLoader(opt, dataset)
 
-    print('Size of the dataset: ', len(gmm))
-    first_item = gmm.__getitem__(0)
+    print('Size of the dataset: %05d, dataloader: %04d' \
+            % (len(dataset), len(data_loader.data_loader)))
+    first_item = dataset.__getitem__(0)
+    first_batch = data_loader.next_batch()
 
     from IPython import embed; embed()
 

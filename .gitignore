@@ -1,0 +1,8 @@
+*__pycache__*
+checkpoints/*
+tensorboard/*
+data/*
+data
+log/*
+*.sh
+
