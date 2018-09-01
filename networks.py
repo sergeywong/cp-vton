@@ -338,7 +338,7 @@ class UnetSkipConnectionBlock(nn.Module):
             #                            padding=1)
             down = [downconv]
             #up = [uprelu, upconv, nn.Tanh()]
-            up = [uprelu, upsample, upconv, nn.Tanh()]
+            up = [uprelu, upsample, upconv, upnorm]
             model = down + [submodule] + up
         elif innermost:
             upsample = nn.Upsample(scale_factor=2, mode='bilinear')
@@ -348,7 +348,7 @@ class UnetSkipConnectionBlock(nn.Module):
             #                            padding=1, bias=use_bias)
             down = [downrelu, downconv]
             #up = [uprelu, upconv, upnorm]
-            up = [uprelu, upsample, upconv, nn.Tanh()]
+            up = [uprelu, upsample, upconv, upnorm]
             model = down + up
         else:
             upsample = nn.Upsample(scale_factor=2, mode='bilinear')
@@ -358,7 +358,7 @@ class UnetSkipConnectionBlock(nn.Module):
             #                            padding=1, bias=use_bias)
             down = [downrelu, downconv, downnorm]
             #up = [uprelu, upconv, upnorm]
-            up = [uprelu, upsample, upconv, nn.Tanh()]
+            up = [uprelu, upsample, upconv, upnorm]
 
             if use_dropout:
                 model = down + [submodule] + up + [nn.Dropout(0.5)]

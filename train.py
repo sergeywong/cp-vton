@@ -130,6 +130,8 @@ def train_tom(opt, train_loader, model, board):
         
         outputs = model(torch.cat([agnostic, c],1))
         p_rendered, m_composite = torch.split(outputs, 3,1)
+        p_rendered = F.tanh(p_rendered)
+        m_composite = F.sigmoid(m_composite)
         m_selected = m_composite * cm
         p_tryon = c * m_selected+ p_rendered * (1 - m_selected)
 
@@ -152,7 +154,9 @@ def train_tom(opt, train_loader, model, board):
             board.add_scalar('VGG', loss_vgg.item(), step+1)
             board.add_scalar('MaskL1', loss_mask.item(), step+1)
             t = time.time() - iter_start_time
-            print('step: %8d, time: %.3f, loss: %4f' % (step+1, t, loss.item()), flush=True)
+            print('step: %8d, time: %.3f, loss: %.4f, l1: %.4f, vgg: %.4f, mask: %.4f' 
+                    % (step+1, t, loss.item(), loss_l1.item(), 
+                    loss_vgg.item(), loss_mask.item()), flush=True)
 
         if (step+1) % opt.save_count == 0:
             save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'step_%06d.pth' % (step+1)))
