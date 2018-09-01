@@ -406,11 +406,10 @@ class Vgg19(nn.Module):
         return out
 
 class VGGLoss(nn.Module):
-    def __init__(self, gpu_ids, layids = None):
+    def __init__(self, layids = None):
         super(VGGLoss, self).__init__()
         self.vgg = Vgg19()
-        if gpu_ids:
-            self.vgg.cuda()
+        self.vgg.cuda()
         self.criterion = nn.L1Loss()
         self.weights = [1.0/32, 1.0/16, 1.0/8, 1.0/4, 1.0]
         self.layids = layids

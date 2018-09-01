@@ -5,4 +5,5 @@ data/*
 data
 log/*
 *.sh
-
+result/*
+results/*

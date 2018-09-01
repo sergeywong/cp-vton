@@ -125,7 +125,7 @@ class CPDataset(data.Dataset):
             im_g = Image.open('grid.png')
             im_g = self.transform(im_g)
         else:
-            im_g = None
+            im_g = ''
 
         result = {
             'c_name':   c_name,     # for visualization

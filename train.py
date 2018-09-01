@@ -7,7 +7,7 @@ import argparse
 import os
 import time
 from cp_dataset import CPDataset, CPDataLoader
-from networks import GMM, UnetGenerator
+from networks import GMM, UnetGenerator, VGGLoss
 
 from tensorboardX import SummaryWriter
 from visualization import board_add_image, board_add_images
@@ -103,11 +103,11 @@ def train_gmm(opt, train_loader, model, board):
 
 def train_tom(opt, train_loader, model, board):
     model.cuda()
-    mode.train()
+    model.train()
     
     # criterion
     criterionL1 = nn.L1Loss()
-    criterionVGG = networks.VGGLoss()
+    criterionVGG = VGGLoss()
     criterionMask = lambda x: x.abs().mean() 
     
     # optimizer
@@ -148,8 +148,11 @@ def train_tom(opt, train_loader, model, board):
         if (step+1) % opt.display_count == 0:
             board_add_images(board, 'combine', visuals, step+1)
             board.add_scalar('metric', loss.item(), step+1)
+            board.add_scalar('L1', loss_l1.item(), step+1)
+            board.add_scalar('VGG', loss_vgg.item(), step+1)
+            board.add_scalar('MaskL1', loss_mask.item(), step+1)
             t = time.time() - iter_start_time
-            print('step: %8d, time: %.3f, loss: %4f' % (step+1, t, loss.item()))
+            print('step: %8d, time: %.3f, loss: %4f' % (step+1, t, loss.item()), flush=True)
 
         if (step+1) % opt.save_count == 0:
             save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'step_%06d.pth' % (step+1)))
@@ -173,7 +176,7 @@ def main():
     board = SummaryWriter(log_dir = os.path.join(opt.tensorboard_dir, opt.name))
    
     # create model & train
-    if opt.stage:
+    if opt.stage == 'GMM':
         model = GMM(opt)
         train_gmm(opt, train_loader, model, board)
     else:

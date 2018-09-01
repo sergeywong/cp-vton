@@ -52,7 +52,7 @@ def test_gmm(opt, test_loader, model, board):
     model.eval()
 
     base_name = os.path.basename(opt.checkpoint)
-    save_dir = os.path.join(opt.result_dir, base_name)
+    save_dir = os.path.join(opt.result_dir, base_name, opt.mode)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     warp_cloth_dir = os.path.join(save_dir, 'warp-cloth')
@@ -91,7 +91,7 @@ def test_gmm(opt, test_loader, model, board):
         if (step+1) % opt.display_count == 0:
             board_add_images(board, 'combine', visuals, step+1)
             t = time.time() - iter_start_time
-            print('step: %8d, time: %.3f' % (step+1, t))
+            print('step: %8d, time: %.3f' % (step+1, t), flush=True)
         
 
 
