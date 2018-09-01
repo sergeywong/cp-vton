@@ -1,5 +1,7 @@
 from tensorboardX import SummaryWriter
 import torch
+from PIL import Image
+import os
 
 def tensor_for_board(img_tensor):
     # map into [0,1]
@@ -40,4 +42,17 @@ def board_add_images(board, tag_name, img_tensors_list, step_count):
 
     for i, img in enumerate(tensor):
         board.add_image('%s/%03d' % (tag_name, i), img, step_count)
+
+def save_images(img_tensors, img_names, save_dir):
+    for img_tensor, img_name in zip(img_tensors, img_names):
+        tensor = (img_tensor.clone()+1)*0.5 * 255
+        tensor = tensor.cpu().clamp(0,255)
+
+        array = tensor.numpy().astype('uint8')
+        if array.shape[0] == 1:
+            array = array.squeeze(0)
+        elif array.shape[0] == 3:
+            array = array.swapaxes(0, 1).swapaxes(1, 2)
+            
+        Image.fromarray(array).save(os.path.join(save_dir, img_name))
 

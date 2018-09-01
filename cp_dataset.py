@@ -86,7 +86,6 @@ class CPDataset(data.Dataset):
         shape = self.transform(parse_shape) # [-1,1]
         phead = torch.from_numpy(parse_head) # [0,1]
         pcm = torch.from_numpy(parse_cloth) # [0,1]
-        pcm.unsqueeze_(0)
 
         # upper cloth
         im_c = im * pcm + (1 - pcm) # [-1,1], fill 1 for other parts
@@ -136,7 +135,6 @@ class CPDataset(data.Dataset):
             'image':    im,         # for visualization
             'agnostic': agnostic,   # for input
             'parse_cloth': im_c,    # for ground truth
-            'parse_mask': pcm,      # for input
             'shape': shape,         # for visualization
             'head': im_h,           # for visualization
             'pose_image': im_pose,  # for visualization

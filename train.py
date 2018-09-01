@@ -75,13 +75,10 @@ def train_gmm(opt, train_loader, model, board):
         c = inputs['cloth'].cuda()
         cm = inputs['cloth_mask'].cuda()
         im_c =  inputs['parse_cloth'].cuda()
-        pcm =  inputs['parse_mask'].cuda()
         im_g = inputs['grid_image'].cuda()
             
         grid, theta = model(agnostic, c)
         warped_cloth = F.grid_sample(c, grid, padding_mode='border')
-        # concentrate on cloth part, which is more reasonable
-        warped_cloth_selected = warped_cloth * pcm + (1 - pcm)
         warped_mask = F.grid_sample(cm, grid, padding_mode='zeros')
         warped_grid = F.grid_sample(im_g, grid, padding_mode='zeros')
 
@@ -89,7 +86,7 @@ def train_gmm(opt, train_loader, model, board):
                    [c, warped_cloth, im_c], 
                    [warped_grid, (warped_cloth+im)*0.5, im]]
         
-        loss = criterionL1(warped_cloth_selected, im_c)    
+        loss = criterionL1(warped_cloth, im_c)    
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()

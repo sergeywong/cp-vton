@@ -10,7 +10,7 @@ from cp_dataset import CPDataset, CPDataLoader
 from networks import GMM, UnetGenerator
 
 from tensorboardX import SummaryWriter
-from visualization import board_add_image, board_add_images
+from visualization import board_add_image, board_add_images, save_images
 
 
 def get_opt():
@@ -29,6 +29,7 @@ def get_opt():
     parser.add_argument("--radius", type=int, default = 5)
     parser.add_argument("--grid_size", type=int, default = 5)
     parser.add_argument('--tensorboard_dir', type=str, default='tensorboard', help='save tensorboard infos')
+    parser.add_argument('--result_dir', type=str, default='result', help='save result infos')
     parser.add_argument('--checkpoint', type=str, default='', help='model checkpoint for test')
     parser.add_argument("--display_count", type=int, default = 1)
     parser.add_argument("--shuffle", action='store_true', help='shuffle input data')
@@ -49,9 +50,22 @@ def load_checkpoint(model, checkpoint_path):
 def test_gmm(opt, test_loader, model, board):
     model.cuda()
     model.eval()
+
+    base_name = os.path.basename(opt.checkpoint)
+    save_dir = os.path.join(opt.result_dir, base_name)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    warp_cloth_dir = os.path.join(save_dir, 'warp-cloth')
+    if not os.path.exists(warp_cloth_dir):
+        os.makedirs(warp_cloth_dir)
+    warp_mask_dir = os.path.join(save_dir, 'warp-mask')
+    if not os.path.exists(warp_mask_dir):
+        os.makedirs(warp_mask_dir)
+
     for step, inputs in enumerate(test_loader.data_loader):
         iter_start_time = time.time()
-            
+        
+        c_names = inputs['c_name']
         im = inputs['image'].cuda()
         im_pose = inputs['pose_image'].cuda()
         im_h = inputs['head'].cuda()
@@ -70,12 +84,15 @@ def test_gmm(opt, test_loader, model, board):
         visuals = [ [im_h, shape, im_pose], 
                    [c, warped_cloth, im_c], 
                    [warped_grid, (warped_cloth+im)*0.5, im]]
-            
-            
+        
+        save_images(warped_cloth.detach(), c_names, warp_cloth_dir) 
+        save_images(warped_mask.detach(), c_names, warp_mask_dir) 
+
         if (step+1) % opt.display_count == 0:
             board_add_images(board, 'combine', visuals, step+1)
             t = time.time() - iter_start_time
             print('step: %8d, time: %.3f' % (step+1, t))
+        
 
 
 def test_tom(opt, test_loader, model, board):
