@@ -21,7 +21,7 @@ python train.py --name gmm_train_new --stage GMM --workers 4 --save_count 5000 -
 ```
 You can see the results in tensorboard, as show below.
 <div align="center">
-  <img src="examples/gmm_train_example.png" width="576px" />
+  <img src="result/gmm_train_example.png" width="576px" />
     <p>Example of GMM train. The center image is the warped cloth.</p>
 </div>
 
@@ -36,7 +36,7 @@ python test.py --name gmm_traintest_new --stage GMM --workers 4 --datamode test 
 
 You can see the results in tensorboard, as show below.
 <div align="center">
-  <img src="examples/gmm_test_example.png" width="576px" />
+  <img src="result/gmm_test_example.png" width="576px" />
     <p>Example of GMM test. The center image is the warped cloth.</p>
 </div>
 
@@ -48,7 +48,7 @@ python train.py --name tom_train_new --stage TOM --workers 4 --save_count 5000 -
 ```
 You can see the results in tensorboard, as show below.
 <div align="center">
-  <img src="examples/tom_train_example.png" width="576px" />
+  <img src="result/tom_train_example.png" width="576px" />
     <p>Example of TOM train. The center image in the last row is the synthesized image.</p>
 </div>
 
@@ -60,7 +60,7 @@ python test.py --name tom_test_new --stage TOM --workers 4 --datamode test --dat
 ```
 You can see the results in tensorboard, as show below.
 <div align="center">
-  <img src="examples/tom_test_example.png" width="576px" />
+  <img src="result/tom_test_example.png" width="576px" />
     <p>Example of TOM test. The center image in the last row is the synthesized image.</p>
 </div>
 

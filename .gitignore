@@ -1,8 +1,8 @@
 *__pycache__*
 checkpoints/*
 tensorboard/*
-data/*
-data
+data/train/*
+data/test/*
 log/*
 *.sh
 result/*
