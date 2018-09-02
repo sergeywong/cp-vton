@@ -58,7 +58,7 @@ class CPDataset(data.Dataset):
      
         c = self.transform(c)  # [-1,1]
         cm_array = np.array(cm)
-        cm_array = (cm_array > 200).astype(np.float32)
+        cm_array = (cm_array >= 128).astype(np.float32)
         cm = torch.from_numpy(cm_array) # [0,1]
         cm.unsqueeze_(0)
 
@@ -158,6 +158,7 @@ class CPDataLoader(object):
         self.data_loader = torch.utils.data.DataLoader(
                 dataset, batch_size=opt.batch_size, shuffle=(train_sampler is None),
                 num_workers=opt.workers, pin_memory=True, sampler=train_sampler)
+        self.dataset = dataset
         self.data_iter = self.data_loader.__iter__()
        
     def next_batch(self):

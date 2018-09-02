@@ -106,7 +106,7 @@ def test_tom(opt, test_loader, model, board):
     try_on_dir = os.path.join(save_dir, 'try-on')
     if not os.path.exists(try_on_dir):
         os.makedirs(try_on_dir)
-    
+    print('Dataset size: %05d!' % (len(test_loader.dataset)), flush=True)
     for step, inputs in enumerate(test_loader.data_loader):
         iter_start_time = time.time()
         
@@ -122,8 +122,11 @@ def test_tom(opt, test_loader, model, board):
         
         outputs = model(torch.cat([agnostic, c],1))
         p_rendered, m_composite = torch.split(outputs, 3,1)
+        p_rendered = F.tanh(p_rendered)
+        m_composite = F.sigmoid(m_composite)
         m_selected = m_composite * cm
         p_tryon = c * m_selected+ p_rendered * (1 - m_selected)
+
 
         visuals = [ [im_h, shape, im_pose], 
                    [c, cm, m_composite], 
@@ -157,14 +160,14 @@ def main():
         model = GMM(opt)
         load_checkpoint(model, opt.checkpoint)
         test_gmm(opt, train_loader, model, board)
-    else opt.stage == 'TOM':
+    elif opt.stage == 'TOM':
         model = UnetGenerator(25, 4, 6, ngf=64, norm_layer=nn.InstanceNorm2d)
         load_checkpoint(model, opt.checkpoint)
         test_tom(opt, train_loader, model, board)
     else:
         raise NotImplementedError('Model [%s] is not implemented' % opt.stage)
   
-    print('Finished test %s, nameed: %s!' % (opt.stage, opt.name))
+    print('Finished test %s, named: %s!' % (opt.stage, opt.name))
 
 if __name__ == "__main__":
     main()
