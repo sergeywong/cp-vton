@@ -22,7 +22,7 @@ python train.py --name gmm_train_new --stage GMM --workers 4 --save_count 5000 -
 You can see the results in tensorboard, as show below.
 <div align="center">
   <img src="examples/gmm_train_example.png" width="576px" />
-    <p>Example of GMM train</p>
+    <p>Example of GMM train. The center image is the warped cloth.</p>
 </div>
 
 ### eval
@@ -37,7 +37,7 @@ python test.py --name gmm_traintest_new --stage GMM --workers 4 --datamode test 
 You can see the results in tensorboard, as show below.
 <div align="center">
   <img src="examples/gmm_test_example.png" width="576px" />
-    <p>Example of GMM test</p>
+    <p>Example of GMM test. The center image is the warped cloth.</p>
 </div>
 
 ## Try-On Module
@@ -49,7 +49,7 @@ python train.py --name tom_train_new --stage TOM --workers 4 --save_count 5000 -
 You can see the results in tensorboard, as show below.
 <div align="center">
   <img src="examples/tom_train_example.png" width="576px" />
-    <p>Example of TOM train</p>
+    <p>Example of TOM train. The center image in the last row is the synthesized image.</p>
 </div>
 
 
@@ -61,16 +61,17 @@ python test.py --name tom_test_new --stage TOM --workers 4 --datamode test --dat
 You can see the results in tensorboard, as show below.
 <div align="center">
   <img src="examples/tom_test_example.png" width="576px" />
-    <p>Example of TOM test</p>
+    <p>Example of TOM test. The center image in the last row is the synthesized image.</p>
 </div>
 
 
 ## Citation
 If this code helps your research, please cite our paper:
-@inproceedings{wang2018cpvton,
-  title={Toward Characteristic-Preserving Image-based Virtual Try-On Network},
-	author={Wang, Bochao and Zheng, Huabin and Liang, Xiaodan and Chen, Yimin and Lin, Liang},
-	booktitle={ECCV},
-	year={2018}
-}
+
+	@inproceedings{wang2018cpvton,
+	title={Toward Characteristic-Preserving Image-based Virtual Try-On Network},
+		author={Wang, Bochao and Zheng, Huabin and Liang, Xiaodan and Chen, Yimin and Lin, Liang},
+		booktitle={ECCV},
+		year={2018}
+	}
 
