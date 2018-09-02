@@ -67,4 +67,10 @@ You can see the results in tensorboard, as show below.
 
 ## Citation
 If this code helps your research, please cite our paper:
+@inproceedings{wang2018cpvton,
+  title={Toward Characteristic-Preserving Image-based Virtual Try-On Network},
+	author={Wang, Bochao and Zheng, Huabin and Liang, Xiaodan and Chen, Yimin and Lin, Liang},
+	booktitle={ECCV},
+	year={2018}
+}
 
