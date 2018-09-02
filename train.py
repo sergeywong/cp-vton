@@ -179,16 +179,19 @@ def main():
         os.makedirs(opt.tensorboard_dir)
     board = SummaryWriter(log_dir = os.path.join(opt.tensorboard_dir, opt.name))
    
-    # create model & train
+    # create model & train & save the final checkpoint
     if opt.stage == 'GMM':
         model = GMM(opt)
         train_gmm(opt, train_loader, model, board)
-    else:
+        save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'gmm_final.pth'))
+    else opt.stage == 'TOM':
         model = UnetGenerator(25, 4, 6, ngf=64, norm_layer=nn.InstanceNorm2d)
         train_tom(opt, train_loader, model, board)
+        save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'tom_final.pth'))
+    else:
+        raise NotImplementedError('Model [%s] is not implemented' % opt.stage)
+        
   
-    # save the final model checkpoint
-    save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'gmm_final.pth'))
     print('Finished training %s, nameed: %s!' % (opt.stage, opt.name))
 
 if __name__ == "__main__":

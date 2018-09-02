@@ -18,13 +18,13 @@ class CPDataset(data.Dataset):
         # base setting
         self.opt = opt
         self.root = opt.dataroot
-        self.mode = opt.mode # train or test or self-defined
+        self.datamode = opt.datamode # train or test or self-defined
         self.stage = opt.stage # GMM or TOM
         self.data_list = opt.data_list
         self.fine_height = opt.fine_height
         self.fine_width = opt.fine_width
         self.radius = opt.radius
-        self.data_path = osp.join(opt.dataroot, opt.mode)
+        self.data_path = osp.join(opt.dataroot, opt.datamode)
         self.transform = transforms.Compose([  \
                 transforms.ToTensor(),   \
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])

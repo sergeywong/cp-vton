@@ -21,7 +21,7 @@ def get_opt():
     parser.add_argument('-b', '--batch-size', type=int, default=4)
     
     parser.add_argument("--dataroot", default = "data")
-    parser.add_argument("--mode", default = "train")
+    parser.add_argument("--datamode", default = "train")
     parser.add_argument("--stage", default = "GMM")
     parser.add_argument("--data_list", default = "train_pairs.txt")
     parser.add_argument("--fine_width", type=int, default = 192)
@@ -52,7 +52,7 @@ def test_gmm(opt, test_loader, model, board):
     model.eval()
 
     base_name = os.path.basename(opt.checkpoint)
-    save_dir = os.path.join(opt.result_dir, base_name, opt.mode)
+    save_dir = os.path.join(opt.result_dir, base_name, opt.datamode)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     warp_cloth_dir = os.path.join(save_dir, 'warp-cloth')
@@ -99,9 +99,18 @@ def test_tom(opt, test_loader, model, board):
     model.cuda()
     model.eval()
     
+    base_name = os.path.basename(opt.checkpoint)
+    save_dir = os.path.join(opt.result_dir, base_name, opt.datamode)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    try_on_dir = os.path.join(save_dir, 'try-on')
+    if not os.path.exists(try_on_dir):
+        os.makedirs(try_on_dir)
+    
     for step, inputs in enumerate(test_loader.data_loader):
         iter_start_time = time.time()
-            
+        
+        im_names = inputs['im_name']
         im = inputs['image'].cuda()
         im_pose = inputs['pose_image']
         im_h = inputs['head']
@@ -120,10 +129,11 @@ def test_tom(opt, test_loader, model, board):
                    [c, cm, m_composite], 
                    [p_rendered, p_tryon, im]]
             
+        save_images(p_tryon.detach(), im_names, try_on_dir) 
         if (step+1) % opt.display_count == 0:
             board_add_images(board, 'combine', visuals, step+1)
             t = time.time() - iter_start_time
-            print('step: %8d, time: %.3f' % (step+1, t))
+            print('step: %8d, time: %.3f' % (step+1, t), flush=True)
 
 
 def main():
@@ -143,14 +153,16 @@ def main():
     board = SummaryWriter(log_dir = os.path.join(opt.tensorboard_dir, opt.name))
    
     # create model & train
-    if opt.stage:
+    if opt.stage == 'GMM':
         model = GMM(opt)
         load_checkpoint(model, opt.checkpoint)
         test_gmm(opt, train_loader, model, board)
-    else:
+    else opt.stage == 'TOM':
         model = UnetGenerator(25, 4, 6, ngf=64, norm_layer=nn.InstanceNorm2d)
         load_checkpoint(model, opt.checkpoint)
         test_tom(opt, train_loader, model, board)
+    else:
+        raise NotImplementedError('Model [%s] is not implemented' % opt.stage)
   
     print('Finished test %s, nameed: %s!' % (opt.stage, opt.name))
 

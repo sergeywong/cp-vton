@@ -51,7 +51,7 @@ def init_weights(net, init_type='normal'):
         raise NotImplementedError('initialization method [%s] is not implemented' % init_type)
 
 class FeatureExtraction(nn.Module):
-    def __init__(self, input_nc, ngf=64, n_layers=3, norm_layer=nn.BatchNorm2d, use_dropout=False, gpu_ids=[]):
+    def __init__(self, input_nc, ngf=64, n_layers=3, norm_layer=nn.BatchNorm2d, use_dropout=False):
         super(FeatureExtraction, self).__init__()
         downconv = nn.Conv2d(input_nc, ngf, kernel_size=4, stride=2, padding=1)
         model = [downconv, nn.ReLU(True), norm_layer(ngf)]
@@ -152,8 +152,6 @@ class TpsGridGen(nn.Module):
         # grid_X,grid_Y: size [1,H,W,1,1]
         self.grid_X = torch.FloatTensor(self.grid_X).unsqueeze(0).unsqueeze(3)
         self.grid_Y = torch.FloatTensor(self.grid_Y).unsqueeze(0).unsqueeze(3)
-        ##self.grid_X = Variable(self.grid_X,requires_grad=False)
-        ##self.grid_Y = Variable(self.grid_Y,requires_grad=False)
         if use_cuda:
             self.grid_X = self.grid_X.cuda()
             self.grid_Y = self.grid_Y.cuda()
@@ -167,16 +165,11 @@ class TpsGridGen(nn.Module):
             P_Y = np.reshape(P_Y,(-1,1)) # size (N,1)
             P_X = torch.FloatTensor(P_X)
             P_Y = torch.FloatTensor(P_Y)
-            #self.P_X_base = Variable(P_X.clone(),requires_grad=False)
-            #self.P_Y_base = Variable(P_Y.clone(),requires_grad=False)
-            #self.Li = Variable(self.compute_L_inverse(P_X,P_Y).unsqueeze(0),requires_grad=False)
             self.P_X_base = P_X.clone()
             self.P_Y_base = P_Y.clone()
             self.Li = self.compute_L_inverse(P_X,P_Y).unsqueeze(0)
             self.P_X = P_X.unsqueeze(2).unsqueeze(3).unsqueeze(4).transpose(0,4)
             self.P_Y = P_Y.unsqueeze(2).unsqueeze(3).unsqueeze(4).transpose(0,4)
-            ##self.P_X = Variable(self.P_X,requires_grad=False)
-            ##self.P_Y = Variable(self.P_Y,requires_grad=False)
             if use_cuda:
                 self.P_X = self.P_X.cuda()
                 self.P_Y = self.P_Y.cuda()
@@ -289,10 +282,8 @@ class TpsGridGen(nn.Module):
 # at the bottleneck
 class UnetGenerator(nn.Module):
     def __init__(self, input_nc, output_nc, num_downs, ngf=64,
-                 norm_layer=nn.BatchNorm2d, use_dropout=False, gpu_ids=[]):
+                 norm_layer=nn.BatchNorm2d, use_dropout=False):
         super(UnetGenerator, self).__init__()
-        self.gpu_ids = gpu_ids
-
         # construct unet structure
         unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=None, norm_layer=norm_layer, innermost=True)
         for i in range(num_downs - 5):
@@ -305,10 +296,7 @@ class UnetGenerator(nn.Module):
         self.model = unet_block
 
     def forward(self, input):
-        if self.gpu_ids and isinstance(input.data, torch.cuda.FloatTensor):
-            return nn.parallel.data_parallel(self.model, input, self.gpu_ids)
-        else:
-            return self.model(input)
+        return self.model(input)
 
 
 # Defines the submodule with skip connection.
@@ -333,31 +321,19 @@ class UnetSkipConnectionBlock(nn.Module):
         if outermost:
             upsample = nn.Upsample(scale_factor=2, mode='bilinear')
             upconv = nn.Conv2d(inner_nc * 2, outer_nc, kernel_size=3, stride=1, padding=1, bias=use_bias)
-            #upconv = nn.ConvTranspose2d(inner_nc * 2, outer_nc,
-            #                            kernel_size=4, stride=2,
-            #                            padding=1)
             down = [downconv]
-            #up = [uprelu, upconv, nn.Tanh()]
             up = [uprelu, upsample, upconv, upnorm]
             model = down + [submodule] + up
         elif innermost:
             upsample = nn.Upsample(scale_factor=2, mode='bilinear')
             upconv = nn.Conv2d(inner_nc, outer_nc, kernel_size=3, stride=1, padding=1, bias=use_bias)
-            #upconv = nn.ConvTranspose2d(inner_nc, outer_nc,
-            #                            kernel_size=4, stride=2,
-            #                            padding=1, bias=use_bias)
             down = [downrelu, downconv]
-            #up = [uprelu, upconv, upnorm]
             up = [uprelu, upsample, upconv, upnorm]
             model = down + up
         else:
             upsample = nn.Upsample(scale_factor=2, mode='bilinear')
             upconv = nn.Conv2d(inner_nc*2, outer_nc, kernel_size=3, stride=1, padding=1, bias=use_bias)
-            #upconv = nn.ConvTranspose2d(inner_nc * 2, outer_nc,
-            #                            kernel_size=4, stride=2,
-            #                            padding=1, bias=use_bias)
             down = [downrelu, downconv, downnorm]
-            #up = [uprelu, upconv, upnorm]
             up = [uprelu, upsample, upconv, upnorm]
 
             if use_dropout:
