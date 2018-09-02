@@ -177,7 +177,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataroot", default = "data")
-    parser.add_argument("--mode", default = "train")
+    parser.add_argument("--datamode", default = "train")
     parser.add_argument("--stage", default = "GMM")
     parser.add_argument("--data_list", default = "train_pairs.txt")
     parser.add_argument("--fine_width", type=int, default = 192)
