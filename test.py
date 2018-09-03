@@ -159,11 +159,13 @@ def main():
     if opt.stage == 'GMM':
         model = GMM(opt)
         load_checkpoint(model, opt.checkpoint)
-        test_gmm(opt, train_loader, model, board)
+        with torch.no_grad():
+            test_gmm(opt, train_loader, model, board)
     elif opt.stage == 'TOM':
         model = UnetGenerator(25, 4, 6, ngf=64, norm_layer=nn.InstanceNorm2d)
         load_checkpoint(model, opt.checkpoint)
-        test_tom(opt, train_loader, model, board)
+        with torch.no_grad():
+            test_tom(opt, train_loader, model, board)
     else:
         raise NotImplementedError('Model [%s] is not implemented' % opt.stage)
   
