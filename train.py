@@ -108,7 +108,7 @@ def train_tom(opt, train_loader, model, board):
     # criterion
     criterionL1 = nn.L1Loss()
     criterionVGG = VGGLoss()
-    criterionMask = lambda x: x.abs().mean() 
+    criterionMask = nn.L1Loss()
     
     # optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr, betas=(0.5, 0.999))
@@ -136,12 +136,12 @@ def train_tom(opt, train_loader, model, board):
         p_tryon = c * m_selected+ p_rendered * (1 - m_selected)
 
         visuals = [ [im_h, shape, im_pose], 
-                   [c, cm, m_composite], 
+                   [c, cm*2-1, m_composite*2-1], 
                    [p_rendered, p_tryon, im]]
             
         loss_l1 = criterionL1(p_tryon, im)
         loss_vgg = criterionVGG(p_tryon, im)
-        loss_mask = criterionMask(1 - m_composite)
+        loss_mask = criterionMask(m_composite, cm)
         loss = loss_l1 + loss_vgg + loss_mask
         optimizer.zero_grad()
         loss.backward()

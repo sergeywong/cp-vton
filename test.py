@@ -85,8 +85,8 @@ def test_gmm(opt, test_loader, model, board):
                    [c, warped_cloth, im_c], 
                    [warped_grid, (warped_cloth+im)*0.5, im]]
         
-        save_images(warped_cloth.detach(), c_names, warp_cloth_dir) 
-        save_images(warped_mask.detach(), c_names, warp_mask_dir) 
+        save_images(warped_cloth, c_names, warp_cloth_dir) 
+        save_images(warped_mask*2-1, c_names, warp_mask_dir) 
 
         if (step+1) % opt.display_count == 0:
             board_add_images(board, 'combine', visuals, step+1)
@@ -129,10 +129,10 @@ def test_tom(opt, test_loader, model, board):
 
 
         visuals = [ [im_h, shape, im_pose], 
-                   [c, cm, m_composite], 
+                   [c, 2*cm-1, m_composite], 
                    [p_rendered, p_tryon, im]]
             
-        save_images(p_tryon.detach(), im_names, try_on_dir) 
+        save_images(p_tryon, im_names, try_on_dir) 
         if (step+1) % opt.display_count == 0:
             board_add_images(board, 'combine', visuals, step+1)
             t = time.time() - iter_start_time
