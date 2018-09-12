@@ -7,7 +7,7 @@ import argparse
 import os
 import time
 from cp_dataset import CPDataset, CPDataLoader
-from networks import GMM, UnetGenerator
+from networks import GMM, UnetGenerator, load_checkpoint
 
 from tensorboardX import SummaryWriter
 from visualization import board_add_image, board_add_images, save_images
@@ -36,16 +36,6 @@ def get_opt():
 
     opt = parser.parse_args()
     return opt
-
-
-
-def load_checkpoint(model, checkpoint_path):
-    if not os.path.exists(checkpoint_path):
-        return
-    model.load_state_dict(torch.load(checkpoint_path))
-    model.cuda()
-
-
 
 def test_gmm(opt, test_loader, model, board):
     model.cuda()
@@ -124,9 +114,7 @@ def test_tom(opt, test_loader, model, board):
         p_rendered, m_composite = torch.split(outputs, 3,1)
         p_rendered = F.tanh(p_rendered)
         m_composite = F.sigmoid(m_composite)
-        m_selected = m_composite * cm
-        p_tryon = c * m_selected+ p_rendered * (1 - m_selected)
-
+        p_tryon = c * m_composite + p_rendered * (1 - m_composite)
 
         visuals = [ [im_h, shape, im_pose], 
                    [c, 2*cm-1, m_composite], 

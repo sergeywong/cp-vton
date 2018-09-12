@@ -7,7 +7,7 @@ import argparse
 import os
 import time
 from cp_dataset import CPDataset, CPDataLoader
-from networks import GMM, UnetGenerator, VGGLoss
+from networks import GMM, UnetGenerator, VGGLoss, load_checkpoint, save_checkpoint
 
 from tensorboardX import SummaryWriter
 from visualization import board_add_image, board_add_images
@@ -31,6 +31,7 @@ def get_opt():
     parser.add_argument('--lr', type=float, default=0.0001, help='initial learning rate for adam')
     parser.add_argument('--tensorboard_dir', type=str, default='tensorboard', help='save tensorboard infos')
     parser.add_argument('--checkpoint_dir', type=str, default='checkpoints', help='save checkpoint infos')
+    parser.add_argument('--checkpoint', type=str, default='', help='model checkpoint for initialization')
     parser.add_argument("--display_count", type=int, default = 20)
     parser.add_argument("--save_count", type=int, default = 100)
     parser.add_argument("--keep_step", type=int, default = 100000)
@@ -39,17 +40,6 @@ def get_opt():
 
     opt = parser.parse_args()
     return opt
-
-
-
-def save_checkpoint(model, save_path):
-    if not os.path.exists(os.path.dirname(save_path)):
-        os.makedirs(os.path.dirname(save_path))
-
-    torch.save(model.cpu().state_dict(), save_path)
-    model.cuda()
-
-
 
 def train_gmm(opt, train_loader, model, board):
     model.cuda()
@@ -132,8 +122,7 @@ def train_tom(opt, train_loader, model, board):
         p_rendered, m_composite = torch.split(outputs, 3,1)
         p_rendered = F.tanh(p_rendered)
         m_composite = F.sigmoid(m_composite)
-        m_selected = m_composite * cm
-        p_tryon = c * m_selected+ p_rendered * (1 - m_selected)
+        p_tryon = c * m_composite+ p_rendered * (1 - m_composite)
 
         visuals = [ [im_h, shape, im_pose], 
                    [c, cm*2-1, m_composite*2-1], 
@@ -182,10 +171,14 @@ def main():
     # create model & train & save the final checkpoint
     if opt.stage == 'GMM':
         model = GMM(opt)
+        if not opt.checkpoint =='' and os.path.exists(opt.checkpoint):
+            load_checkpoint(model, opt.checkpoint)
         train_gmm(opt, train_loader, model, board)
         save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'gmm_final.pth'))
     elif opt.stage == 'TOM':
         model = UnetGenerator(25, 4, 6, ngf=64, norm_layer=nn.InstanceNorm2d)
+        if not opt.checkpoint =='' and os.path.exists(opt.checkpoint):
+            load_checkpoint(model, opt.checkpoint)
         train_tom(opt, train_loader, model, board)
         save_checkpoint(model, os.path.join(opt.checkpoint_dir, opt.name, 'tom_final.pth'))
     else:
