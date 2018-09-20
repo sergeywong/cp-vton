@@ -37,7 +37,7 @@ You can see the results in tensorboard, as show below.
 
 ### eval
 
-Choose the different source data for eval with the option ```--datamodel```.
+Choose the different source data for eval with the option ```--datamode```.
 
 An example training command is
 ```
@@ -53,6 +53,8 @@ You can see the results in tensorboard, as show below.
 
 ## Try-On Module
 ### training
+Before the trainning, you should generate warp-mask & warp-cloth, using the test process of GMM with `--datamode train`. 
+Then move these files or make soft links under the directory `data/train`.
 An example training command is
 
 ```
