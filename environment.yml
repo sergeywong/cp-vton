@@ -36,7 +36,6 @@ dependencies:
   - pycparser=2.19=py35_0
   - python=3.5.6=hc3d631a_0
   - pytorch=0.4.1=py35_py27__9.0.176_7.1.2_2
-  - pytorch-cpu=0.4.1=py35_cpu_1
   - readline=7.0=h7b6447c_5
   - setuptools=40.2.0=py35_0
   - six=1.11.0=py35_1
@@ -50,13 +49,17 @@ dependencies:
   - pip:
     - absl-py==0.7.1
     - bleach==1.5.0
+    - chardet==3.0.4
     - cython==0.29.8
     - grpcio==1.21.1
     - html5lib==0.9999999
+    - idna==2.8
     - markdown==3.1.1
     - protobuf==3.7.1
+    - pyyaml==5.1
+    - requests==2.22.0
     - tensorboard==1.6.0
     - tensorboard-pytorch==0.7.1
     - tensorboardx==1.1
+    - urllib3==1.25.3
     - werkzeug==0.15.4
-
